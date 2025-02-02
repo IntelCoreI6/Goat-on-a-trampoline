@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Goat on Trampoline</title>
+    <style>
+        canvas {
+            border: 2px solid black;
+            background: #87CEEB;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            padding-bottom: 20px;
+        }
+        #score {
+            font-size: 24px;
+            margin: 10px;
+        }
+        .instructions {
+            max-width: 400px;
+            margin: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .instructions h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .instructions ul {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div class="instructions">
+        <h2>How to Play</h2>
+        <ul>
+            <li>Use ← and → arrow keys to move the goat left and right</li>
+            <li>Bounce on the blue trampoline to stay in the game</li>
+            <li>Collect gold coins for 10 points each</li>
+            <li>Jump on the blue tops of blocks for 5 points and destroy them</li>
+            <li>Be careful! Hitting blocks from the sides or bottom ends the game</li>
+            <li>Don't fall off the screen!</li>
+        </ul>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        const goat = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            width: 50,
+            height: 40,
+            velocityY: 0,
+            velocityX: 0,
+            onTrampoline: false,
+            facingRight: true
+        };
+
+        const trampoline = {
+            x: canvas.width / 2 - 50,
+            width: 100,
+            height: 10,
+            y: canvas.height - 50
+        };
+
+        const coins = [];
+        const obstacles = [];
+        let score = 0;
+        let gameLoop;
+        let frameCount = 0;
+
+        function drawGoat() {
+            ctx.save();
+            
+            // Body
+            ctx.fillStyle = 'lightgray';
+            ctx.fillRect(goat.x, goat.y + 10, goat.width - 10, goat.height - 15);
+            
+            // Head
+            ctx.fillRect(goat.facingRight ? goat.x + goat.width - 15 : goat.x - 5, 
+                        goat.y, 20, 20);
+            
+            // Legs
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(goat.x + 5, goat.y + goat.height - 10, 5, 10);
+            ctx.fillRect(goat.x + goat.width - 15, goat.y + goat.height - 10, 5, 10);
+            
+            // Face details
+            ctx.fillStyle = 'black';
+            // Eye
+            ctx.fillRect(goat.facingRight ? goat.x + goat.width - 8 : goat.x + 3, 
+                        goat.y + 5, 4, 4);
+            
+            // Horns
+            ctx.beginPath();
+            if (goat.facingRight) {
+                ctx.moveTo(goat.x + goat.width, goat.y);
+                ctx.lineTo(goat.x + goat.width + 5, goat.y - 8);
+                ctx.lineTo(goat.x + goat.width - 5, goat.y);
+            } else {
+                ctx.moveTo(goat.x, goat.y);
+                ctx.lineTo(goat.x - 5, goat.y - 8);
+                ctx.lineTo(goat.x + 5, goat.y);
+            }
+            ctx.fill();
+            
+            // Ear
+            ctx.fillRect(goat.facingRight ? goat.x + goat.width - 5 : goat.x, 
+                        goat.y + 2, 3, 8);
+            
+            ctx.restore();
+        }
+
+        function drawTrampoline() {
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(trampoline.x, trampoline.y, trampoline.width, trampoline.height);
+        }
+
+        function createCoin() {
+            coins.push({
+                x: Math.random() * (canvas.width - 20),
+                y: Math.random() * (canvas.height / 2),
+                width: 15,
+                height: 15
+            });
+        }
+
+        function createObstacle() {
+            obstacles.push({
+                x: Math.random() * (canvas.width - 30),
+                y: Math.random() * (canvas.height / 2),
+                width: 30,
+                height: 30
+            });
+        }
+
+        function drawCoins() {
+            ctx.fillStyle = 'gold';
+            coins.forEach(coin => {
+                ctx.beginPath();
+                ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2, coin.width/2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                // Draw main red body
+                ctx.fillStyle = 'red';
+                ctx.fillRect(obstacle.x, obstacle.y + 5, obstacle.width, obstacle.height - 5);
+                
+                // Draw blue top
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, 5);
+            });
+        }
+
+        function checkCollisions() {
+            // Trampoline collision
+            if (goat.y + goat.height > trampoline.y &&
+                goat.x + goat.width > trampoline.x &&
+                goat.x < trampoline.x + trampoline.width) {
+                goat.velocityY = -15;
+                goat.onTrampoline = true;
+            }
+
+            // Coin collection
+            coins.forEach((coin, index) => {
+                if (goat.x < coin.x + coin.width &&
+                    goat.x + goat.width > coin.x &&
+                    goat.y < coin.y + coin.height &&
+                    goat.y + goat.height > coin.y) {
+                    coins.splice(index, 1);
+                    score += 10;
+                    scoreElement.textContent = `Score: ${score}`;
+                }
+            });
+
+            // Obstacle collision with directional detection
+            obstacles.forEach((obstacle, index) => {
+                if (goat.x < obstacle.x + obstacle.width &&
+                    goat.x + goat.width > obstacle.x &&
+                    goat.y < obstacle.y + obstacle.height &&
+                    goat.y + goat.height > obstacle.y) {
+                    
+                    // Calculate the center points
+                    const goatCenterY = goat.y + goat.height/2;
+                    const obstacleCenterY = obstacle.y + obstacle.height/2;
+                    const prevGoatBottom = goat.y + goat.height - goat.velocityY;
+                    
+                    // Check if goat is above the obstacle AND was previously above the obstacle
+                    if (goat.y + goat.height < obstacleCenterY && prevGoatBottom <= obstacle.y) {
+                        goat.velocityY = -10; // Small bounce
+                        obstacles.splice(index, 1); // Remove the obstacle
+                        score += 5; // Bonus points for jumping on obstacle
+                        scoreElement.textContent = `Score: ${score}`;
+                    } else {
+                        // Hit from sides or bottom - game over
+                        gameOver();
+                    }
+                }
+            });
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.font = '48px Arial';
+            ctx.fillText('Game Over!', canvas.width/2 - 100, canvas.height/2);
+            ctx.font = '24px Arial';
+            ctx.fillText(`Final Score: ${score}`, canvas.width/2 - 60, canvas.height/2 + 40);
+        }
+
+        function update() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Apply gravity
+            goat.velocityY += 0.5;
+            goat.y += goat.velocityY;
+            goat.x += goat.velocityX;
+
+            // Boundary checking
+            if (goat.x < 0) goat.x = 0;
+            if (goat.x + goat.width > canvas.width) goat.x = canvas.width - goat.width;
+            if (goat.y < 0) goat.y = 0;
+            if (goat.y + goat.height > canvas.height) gameOver();
+
+            // Spawn new coins and obstacles
+            frameCount++;
+            if (frameCount % 100 === 0) createCoin();
+            if (frameCount % 150 === 0) createObstacle();
+
+            // Draw everything
+            drawTrampoline();
+            drawGoat();
+            drawCoins();
+            drawObstacles();
+            checkCollisions();
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                goat.velocityX = -5;
+                goat.facingRight = false;
+            }
+            if (e.key === 'ArrowRight') {
+                goat.velocityX = 5;
+                goat.facingRight = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                goat.velocityX = 0;
+            }
+        });
+
+        // Start the game
+        createCoin();
+        gameLoop = setInterval(update, 1000/60);
+    </script>
+</body>
+</html>
