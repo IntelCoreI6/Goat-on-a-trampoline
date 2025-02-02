@@ -4,8 +4,10 @@
 
 Goaty Bounce is a  browser-based game where you control an adventurous goat with dreams of becoming a trampoline champion! Your woolly friend will bounce, dodge, and collect their way to glory.
 
-## 🎮 How to Play
+### [🐐 Try the Game Here](https://intelcorei6.github.io/Goat-on-a-trampoline/) 🎮
+Bounce your way to glory at: `https://intelcorei6.github.io/Goat-on-a-trampoline/`
 
+## 🎮 How to Play
 1. 🏃‍♂️ Use ←→ arrow keys to move your goat left and right
 2. 🦘 Bounce on the blue trampoline to stay in the game
 3. 💰 Collect shiny gold coins (they're not for eating!) 
